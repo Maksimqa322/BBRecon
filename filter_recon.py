@@ -61,26 +61,26 @@ def has_params(url):
 
 def clean_urls(input_file, output_file, args):
     seen = set()
-    for line in input_file:
-        url = line.strip()
-        if not url:
-            continue
-            
-        # Нормализация для дедупликации
-        norm_url = normalize_url(url)
-        if norm_url in seen:
-            continue
-        seen.add(norm_url)
-        
-        if not is_interesting(url, args):
-            continue
-            
-        if args.params_only and not has_params(url):
-            continue
-            
-        output_file.write(url + '\n')
-    
-    return len(seen)
+    unique_count = 0
+    try:
+        for line in input_file:
+            url = line.strip()
+            if not url:
+                continue
+            norm = normalize_url(url)
+            if norm in seen:
+                continue
+            if not is_interesting(url, args):
+                continue
+            seen.add(norm)
+            try:
+                print(url, file=output_file)
+                unique_count += 1
+            except Exception as e:
+                print(f"[-] Ошибка при записи URL: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"[-] Ошибка при обработке входного файла: {e}", file=sys.stderr)
+    return unique_count
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

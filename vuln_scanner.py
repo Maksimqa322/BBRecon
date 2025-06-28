@@ -317,28 +317,42 @@ def main():
     print(f"\n[=== Начало сканирования уязвимостей для {args.domain} ===]\n")
     
     # Пути к файлам
-    urls_file = f"{args.domain}/{args.urls}"
-    files_dir = f"{args.domain}/{args.files}"
-    
+    def safe_path(base, rel):
+        if os.path.isabs(rel) or rel.startswith("./"):
+            return rel
+        return os.path.join(base, rel)
+
+    urls_file = safe_path(args.domain, args.urls)
+    files_dir = safe_path(args.domain, args.files)
+
     if not os.path.exists(urls_file):
         print(f"[-] Файл с URL не найден: {urls_file}")
         return
     
     # 1. Поиск секретов в файлах
     if not args.skip_secrets and os.path.exists(files_dir):
-        scan_for_secrets_in_files(files_dir, args.output)
+        try:
+            scan_for_secrets_in_files(files_dir, args.output)
+        except Exception as e:
+            print(f"[-] Ошибка при поиске секретов: {e}")
     
     # 2. Общее сканирование nuclei
     if not args.skip_nuclei:
-        scan_with_nuclei_general(urls_file, args.output)
+        try:
+            scan_with_nuclei_general(urls_file, args.output)
+        except Exception as e:
+            print(f"[-] Ошибка при запуске nuclei: {e}")
     
     # 3. Тестирование URL с параметрами
-    param_urls_file = f"{args.domain}/urls/param_urls.txt"
+    param_urls_file = os.path.join(args.domain, "urls/param_urls.txt")
     if os.path.exists(param_urls_file):
         print("[+] Тестирование URL с параметрами...")
-        
-        with open(param_urls_file, 'r') as f:
-            urls_with_params = [line.strip() for line in f if line.strip()]
+        try:
+            with open(param_urls_file, 'r') as f:
+                urls_with_params = [line.strip() for line in f if line.strip()]
+        except Exception as e:
+            print(f"[-] Ошибка при чтении param_urls.txt: {e}")
+            urls_with_params = []
         
         # Ограничиваем количество URL для тестирования
         test_urls = urls_with_params[:20]  # Тестируем первые 20 URL

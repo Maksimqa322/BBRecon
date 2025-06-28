@@ -42,6 +42,8 @@ def run_command(cmd, output_file=None):
                 return result.stdout.strip()
             else:
                 print(f"[-] Команда завершилась с ошибкой: {result.stderr}")
+                if result.stderr:
+                    print(f"[stderr]: {result.stderr}")
                 return None
         else:
             # Если нужно только выполнить команду
@@ -55,6 +57,8 @@ def run_command(cmd, output_file=None):
                 return result.stdout.strip()
             else:
                 print(f"[-] Команда завершилась с ошибкой: {result.stderr}")
+                if result.stderr:
+                    print(f"[stderr]: {result.stderr}")
                 return None
                 
     except subprocess.CalledProcessError as e:
