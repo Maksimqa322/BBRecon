@@ -369,6 +369,18 @@ install_ruby_and_wayback() {
     fi
 }
 
+# Проверка и установка python3-venv
+if ! dpkg -s python3-venv >/dev/null 2>&1; then
+    echo "[INFO] Устанавливаю python3-venv..."
+    sudo apt-get update && sudo apt-get install -y python3-venv
+fi
+
+# Создание виртуального окружения, если его нет
+if [ ! -d "venv" ]; then
+    echo "[INFO] Создаю виртуальное окружение..."
+    python3 -m venv venv
+fi
+
 # Основная функция
 main() {
     echo -e "${GREEN}"
