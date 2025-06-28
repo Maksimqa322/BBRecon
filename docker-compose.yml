@@ -5,11 +5,12 @@ services:
     build: .
     container_name: bagbountyauto
     volumes:
-      - ./results:/app/results
+      - ./reports:/app/reports
       - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
-    command: ["python3", "run_all.py", "example.com"]
+      - BAGBOUNTY_REPORTS_DIR=/app/reports
+    command: ["example.com"]
     restart: unless-stopped
     
   # Альтернативный сервис для интерактивного использования
@@ -17,11 +18,23 @@ services:
     build: .
     container_name: bagbountyauto-shell
     volumes:
-      - ./results:/app/results
+      - ./reports:/app/reports
       - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
+      - BAGBOUNTY_REPORTS_DIR=/app/reports
     stdin_open: true
     tty: true
     command: ["/bin/bash"]
-    restart: unless-stopped 
+    restart: unless-stopped
+    
+  # Сервис для управления отчетами
+  bagbountyauto-reports:
+    build: .
+    container_name: bagbountyauto-reports
+    volumes:
+      - ./reports:/app/reports
+    environment:
+      - BAGBOUNTY_REPORTS_DIR=/app/reports
+    command: ["python3", "manage_reports.py", "summary"]
+    restart: "no" 

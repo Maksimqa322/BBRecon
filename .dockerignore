@@ -2,26 +2,70 @@
 .git
 .gitignore
 
-# Результаты сканирования
+# Отчеты и результаты
+reports/
 recon-*/
 vuln_scan/
-results/
-data/
+filtered-*.txt
+analysis/
+
+# Виртуальные окружения
+venv/
+env/
+ENV/
 
 # Логи
 *.log
+logs/
 
 # Временные файлы
 *.tmp
 *.temp
+*.cache
+
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Системные файлы
+# OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Скачанные файлы
+files/
+sensitive/
+js/
+php/
+
+# SQLMap результаты
+.sqlmap/
+
+# Nuclei результаты
+nuclei_*.txt
+
+# TruffleHog результаты
+trufflehog_*.txt
+
+# Секреты
+secrets_*.txt
+*_secrets.txt
+
+# Скрипты-обертки (создаются автоматически)
+bagbounty_wrapper.sh
+test_venv.sh
+
+# Документация
+docs/
+*.md
+INSTALL.md 

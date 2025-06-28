@@ -1,9 +1,10 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Установка переменных окружения
 ENV DEBIAN_FRONTEND=noninteractive
 ENV GO111MODULE=on
 ENV GOPROXY=direct
+ENV BAGBOUNTY_REPORTS_DIR=/app/reports
 
 # Обновление системы и установка базовых пакетов
 RUN apt-get update && apt-get install -y \
@@ -20,12 +21,16 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    python3-full \
+    ruby \
+    ruby-dev \
+    ruby-bundler \
     && rm -rf /var/lib/apt/lists/*
 
 # Установка Go
-RUN wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz \
-    && rm go1.21.5.linux-amd64.tar.gz
+RUN wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz \
+    && rm go1.22.0.linux-amd64.tar.gz
 
 # Настройка PATH
 ENV PATH=$PATH:/usr/local/go/bin
@@ -45,32 +50,51 @@ ENV PATH=$PATH:/root/go/bin
 RUN git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap \
     && ln -sf /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap
 
-# Установка Python пакетов
-RUN pip3 install --no-cache-dir \
-    requests \
-    httpx \
-    beautifulsoup4 \
-    lxml \
-    colorama \
-    tqdm
-
-# Обновление nuclei templates
-RUN nuclei -update-templates
+# Установка wayback_machine_downloader
+RUN gem install wayback_machine_downloader
 
 # Создание рабочей директории
 WORKDIR /app
 
-# Копирование скриптов
-COPY *.py ./
-COPY *.md ./
-COPY install.sh ./
+# Копирование исходного кода
+COPY . .
 
-# Создание директории для результатов
-RUN mkdir -p /app/results
+# Создание виртуального окружения и установка Python пакетов
+RUN python3 -m venv venv \
+    && . venv/bin/activate \
+    && pip install --upgrade pip \
+    && pip install \
+        requests \
+        httpx \
+        beautifulsoup4 \
+        lxml \
+        colorama \
+        tqdm \
+    && deactivate
+
+# Создание скрипта-обертки для Docker
+RUN echo '#!/bin/bash' > bagbounty_docker.sh && \
+    echo '# Обертка для запуска BagBountyAuto в Docker' >> bagbounty_docker.sh && \
+    echo '' >> bagbounty_docker.sh && \
+    echo 'SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' >> bagbounty_docker.sh && \
+    echo 'VENV_PATH="$SCRIPT_DIR/venv"' >> bagbounty_docker.sh && \
+    echo '' >> bagbounty_docker.sh && \
+    echo '# Активируем виртуальное окружение и запускаем скрипт' >> bagbounty_docker.sh && \
+    echo 'source "$VENV_PATH/bin/activate"' >> bagbounty_docker.sh && \
+    echo 'python3 "$SCRIPT_DIR/bagbounty.py" "$@"' >> bagbounty_docker.sh
+
+# Создание структуры директорий для отчетов
+RUN mkdir -p /app/reports/{recon_reports,analysis_reports,vuln_scan_reports,filtered_reports,logs}
+
+# Обновление nuclei templates
+RUN nuclei -update-templates
 
 # Установка прав на выполнение
-RUN chmod +x *.py install.sh
+RUN chmod +x *.py *.sh
+
+# Создание volume для отчетов
+VOLUME ["/app/reports"]
 
 # Точка входа
-ENTRYPOINT ["python3"]
-CMD ["run_all.py"] 
+ENTRYPOINT ["./bagbounty_docker.sh"]
+CMD ["--help"] 
