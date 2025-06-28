@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  bagbountyauto:
+    build: .
+    container_name: bagbountyauto
+    volumes:
+      - ./results:/app/results
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["python3", "run_all.py", "example.com"]
+    restart: unless-stopped
+    
+  # Альтернативный сервис для интерактивного использования
+  bagbountyauto-shell:
+    build: .
+    container_name: bagbountyauto-shell
+    volumes:
+      - ./results:/app/results
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+    restart: unless-stopped 

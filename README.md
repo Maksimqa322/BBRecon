@@ -2,6 +2,30 @@
 
 Автоматизированный фреймворк для багбаунти-разведки и поиска уязвимостей. Включает комплексные инструменты для сбора информации, фильтрации, анализа и активного тестирования.
 
+## Быстрая установка (Ubuntu/Debian)
+
+```bash
+# Клонируйте репозиторий
+git clone https://github.com/Maksimqa322/BBRecon.git
+cd BBRecon
+
+# Запустите автоматическую установку
+./install.sh
+```
+
+## Docker установка
+
+```bash
+# Сборка и запуск контейнера
+docker-compose up --build
+
+# Или интерактивный режим
+docker-compose run --rm bagbountyauto-shell
+
+# Запуск в контейнере
+docker run -it --rm -v $(pwd)/results:/app/results bagbountyauto python3 run_all.py example.com
+```
+
 ## Основные скрипты
 
 - **recon.py** — автоматическая разведка домена: поиск поддоменов, сбор URL (waybackurls, katana), скачивание файлов, первичный анализ.
