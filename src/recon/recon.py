@@ -67,7 +67,7 @@ def main():
     time_tracker.start_stage("Поиск поддоменов")
     print_status("Этап 1/7: Поиск поддоменов...")
     subdomains_file = f"{dirs['subdomains']}/subdomains.txt"
-    result = run_command(f"{TOOLS['subfinder']} -d {args.domain} -all -recursive -silent", subdomains_file)
+    result = run_command(f"{TOOLS['subfinder']} -d {args.domain} -silent", subdomains_file)
     
     if not result or count_lines(subdomains_file) == 0:
         print_error("Не удалось найти поддомены. Проверьте домен и доступность subfinder.")
