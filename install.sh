@@ -288,7 +288,6 @@ verify_installation() {
     
     tools=(
         "python3"
-        "pip3"
         "go"
         "subfinder"
         "httpx"
@@ -312,6 +311,19 @@ verify_installation() {
             failed_tools+=($tool)
         fi
     done
+    
+    # Проверяем виртуальное окружение и pip
+    if [ -d "venv" ]; then
+        if [ -f "venv/bin/pip" ]; then
+            print_success "pip (в venv) - OK"
+        else
+            print_error "pip (в venv) - НЕ НАЙДЕН"
+            failed_tools+=("pip")
+        fi
+    else
+        print_warning "Виртуальное окружение не найдено"
+        failed_tools+=("venv")
+    fi
     
     if [ ${#failed_tools[@]} -eq 0 ]; then
         print_success "Все инструменты установлены успешно!"
