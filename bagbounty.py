@@ -13,12 +13,12 @@ from pathlib import Path
 # Добавляем src в путь
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from src.utils.common import print_status, print_success, print_error, print_warning
+from src.utils.common import print_status, print_success, print_error, print_warning, time_tracker
 from src.utils.reports_manager import setup_reports_for_domain, ReportsManager
 
 def run_step(command, step_name, cwd=None):
     """Выполняет этап и обрабатывает ошибки"""
-    print_status(f"Запуск: {step_name}")
+    time_tracker.start_stage(step_name)
     try:
         result = subprocess.run(
             command, 
@@ -28,11 +28,12 @@ def run_step(command, step_name, cwd=None):
             text=True,
             cwd=cwd
         )
-        print_success(f"{step_name} завершен успешно")
+        time_tracker.end_stage(step_name)
         if result.stdout:
             print(result.stdout)
         return True
     except subprocess.CalledProcessError as e:
+        time_tracker.end_stage(step_name)
         print_error(f"Ошибка на этапе: {step_name}")
         if e.stdout:
             print(f"STDOUT: {e.stdout}")
@@ -40,11 +41,13 @@ def run_step(command, step_name, cwd=None):
             print(f"STDERR: {e.stderr}")
         return False
     except Exception as e:
+        time_tracker.end_stage(step_name)
         print_error(f"Неожиданная ошибка в {step_name}: {e}")
         return False
 
 def check_dependencies():
     """Проверяет наличие основных зависимостей"""
+    time_tracker.start_stage("Проверка зависимостей")
     print_status("Проверка зависимостей...")
     
     required_tools = ['python3', 'subfinder', 'httpx', 'waybackurls', 'katana']
@@ -61,8 +64,10 @@ def check_dependencies():
     if missing:
         print_warning(f"Отсутствуют инструменты: {', '.join(missing)}")
         print_warning("Запустите ./install.sh для установки")
+        time_tracker.end_stage("Проверка зависимостей")
         return False
     
+    time_tracker.end_stage("Проверка зависимостей")
     return True
 
 def main():
@@ -88,25 +93,35 @@ def main():
     parser.add_argument('--check-deps', action='store_true', help='Проверить зависимости и выйти')
     parser.add_argument('--cleanup-reports', action='store_true', help='Очистить старые отчеты перед запуском')
     parser.add_argument('--show-summary', action='store_true', help='Показать сводку отчетов в конце')
+    parser.add_argument('--show-timing', action='store_true', help='Показать статистику времени выполнения')
     
     args = parser.parse_args()
     
+    # Начинаем отсчет общего времени
+    time_tracker.start_total()
+    
     if args.check_deps:
         check_dependencies()
+        time_tracker.end_total()
         return
     
     # Проверка зависимостей
     if not check_dependencies():
+        time_tracker.end_total()
         return
     
     # Настройка менеджера отчетов
+    time_tracker.start_stage("Настройка системы отчетов")
     print_status("Настройка системы отчетов...")
     reports_manager = setup_reports_for_domain(args.domain, args.reports_dir)
+    time_tracker.end_stage("Настройка системы отчетов")
     
     # Очистка старых отчетов если запрошено
     if args.cleanup_reports:
+        time_tracker.start_stage("Очистка старых отчетов")
         print_status("Очистка старых отчетов...")
         reports_manager.cleanup_old_reports()
+        time_tracker.end_stage("Очистка старых отчетов")
     
     # Настройка путей
     recon_out = f"recon-{args.domain}"
@@ -123,19 +138,30 @@ def main():
     # 1. Разведка
     if not run_step(f"python3 src/recon/recon.py {args.domain}", "Разведка домена"):
         print_error("Разведка завершилась с ошибкой")
+        time_tracker.end_total()
         return
     
     if args.recon_only:
         print_success("Режим 'только разведка' - завершение")
         # Организуем отчеты разведки
+        time_tracker.start_stage("Организация отчетов")
         reports_manager.move_existing_reports(args.domain)
+        time_tracker.end_stage("Организация отчетов")
+        
         if args.show_summary:
             reports_manager.print_summary()
+        
+        # Показываем статистику времени
+        if args.show_timing:
+            time_tracker.print_summary()
+        
+        time_tracker.end_total()
         return
     
     # 2. Фильтрация
     if not run_step(f"python3 src/filter/filter_recon.py {all_urls_file}", "Фильтрация результатов"):
         print_error("Фильтрация завершилась с ошибкой")
+        time_tracker.end_total()
         return
     
     # 3. Анализ
@@ -149,8 +175,10 @@ def main():
             print_warning("Активное сканирование завершилось с ошибкой")
     
     # Организуем все отчеты
+    time_tracker.start_stage("Организация отчетов")
     print_status("Организация отчетов...")
     reports_manager.move_existing_reports(args.domain)
+    time_tracker.end_stage("Организация отчетов")
     
     print_success("Все этапы завершены!")
     print_status(f"Отчеты организованы в: {reports_manager.base_dir}/")
@@ -166,6 +194,13 @@ def main():
     # Показываем сводку отчетов если запрошено
     if args.show_summary:
         reports_manager.print_summary()
+    
+    # Показываем статистику времени выполнения
+    if args.show_timing:
+        time_tracker.print_summary()
+    
+    # Завершаем общий отсчет времени
+    time_tracker.end_total()
 
 if __name__ == "__main__":
     main() 

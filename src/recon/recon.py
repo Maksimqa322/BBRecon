@@ -14,13 +14,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from src.utils.common import (
     run_command, count_lines, setup_workspace, get_timestamp,
-    print_status, print_success, print_error
+    print_status, print_success, print_error, time_tracker
 )
 from src.utils.reports_manager import get_report_path
 from config.settings import TOOLS, PORTS, THREADS, KATANA_DEPTH, BLACKLIST_EXT, SENSITIVE_EXT
 
 def check_tools():
     """Проверяет наличие необходимых инструментов"""
+    time_tracker.start_stage("Проверка инструментов")
     missing_tools = []
     for tool_name, tool_cmd in TOOLS.items():
         if tool_name in ['subfinder', 'httpx', 'waybackurls', 'katana']:
@@ -34,7 +35,10 @@ def check_tools():
     if missing_tools:
         print_error(f"Отсутствуют инструменты: {', '.join(missing_tools)}")
         print_error("Установите их перед запуском скрипта")
+        time_tracker.end_stage("Проверка инструментов")
         return False
+    
+    time_tracker.end_stage("Проверка инструментов")
     return True
 
 def main():
@@ -43,45 +47,66 @@ def main():
     parser.add_argument('--reports-dir', help='Директория для отчетов')
     args = parser.parse_args()
     
+    # Начинаем общий отсчет времени для разведки
+    time_tracker.start_total()
+    
     # Проверка инструментов
     if not check_tools():
+        time_tracker.end_total()
         return
     
     # Настройка рабочего пространства
+    time_tracker.start_stage("Настройка рабочего пространства")
     dirs = setup_workspace(args.domain)
     timestamp = get_timestamp()
+    time_tracker.end_stage("Настройка рабочего пространства")
     
     print_status(f"Начало разведки для {args.domain}")
     
     # Этап 1: Обнаружение поддоменов
+    time_tracker.start_stage("Поиск поддоменов")
     print_status("Этап 1/7: Поиск поддоменов...")
     subdomains_file = f"{dirs['subdomains']}/subdomains.txt"
     result = run_command(f"{TOOLS['subfinder']} -d {args.domain} -all -recursive -silent", subdomains_file)
     
     if not result or count_lines(subdomains_file) == 0:
         print_error("Не удалось найти поддомены. Проверьте домен и доступность subfinder.")
+        time_tracker.end_stage("Поиск поддоменов")
+        time_tracker.end_total()
         return
     
+    time_tracker.end_stage("Поиск поддоменов")
+    
     # Этап 2: Поиск живых поддоменов
+    time_tracker.start_stage("Проверка живых поддоменов")
     print_status("Этап 2/7: Проверка живых поддоменов...")
     alive_file = f"{dirs['subdomains']}/alive.txt"
     run_command(f"cat {subdomains_file} | {TOOLS['httpx']} -p {PORTS} -t {THREADS} -silent -o {alive_file}")
     
     if count_lines(alive_file) == 0:
         print_error("Не найдено живых поддоменов. Проверьте доступность хостов.")
+        time_tracker.end_stage("Проверка живых поддоменов")
+        time_tracker.end_total()
         return
     
+    time_tracker.end_stage("Проверка живых поддоменов")
+    
     # Этап 3: Сбор URL с помощью waybackurls
+    time_tracker.start_stage("Сбор URL (waybackurls)")
     print_status("Этап 3/7: Сбор URL (waybackurls)...")
     waybackurls_file = f"{dirs['waybackurls']}/waybackurls_urls.txt"
     run_command(f"{TOOLS['waybackurls']} {args.domain}", waybackurls_file)
+    time_tracker.end_stage("Сбор URL (waybackurls)")
     
     # Этап 4: Сбор URL с помощью Katana
+    time_tracker.start_stage("Сбор URL (katana)")
     print_status("Этап 4/7: Сбор URL (katana)...")
     katana_file = f"{dirs['katana']}/katana_urls.txt"
     run_command(f"{TOOLS['katana']} -list {alive_file} -d {KATANA_DEPTH} -jc -fx -ef {BLACKLIST_EXT} -o {katana_file}")
+    time_tracker.end_stage("Сбор URL (katana)")
     
     # Этап 5: Объединение и обработка URL
+    time_tracker.start_stage("Обработка URL")
     print_status("Этап 5/7: Обработка URL...")
     all_urls_file = f"{dirs['urls']}/all_urls.txt"
     
@@ -117,7 +142,10 @@ def main():
         for name in ["sensitive_files.txt", "param_urls.txt", "js_files.txt", "php_files.txt", "api_endpoints.txt"]:
             open(f"{dirs['urls']}/{name}", 'w').close()
     
+    time_tracker.end_stage("Обработка URL")
+    
     # Этап 6: Скачивание файлов
+    time_tracker.start_stage("Скачивание файлов")
     print_status("Этап 6/7: Скачивание файлов...")
     
     def download_files(file_type, urls_file, output_dir):
@@ -133,7 +161,10 @@ def main():
         executor.submit(download_files, "js", f"{dirs['urls']}/js_files.txt", dirs['js'])
         executor.submit(download_files, "php", f"{dirs['urls']}/php_files.txt", dirs['php'])
     
+    time_tracker.end_stage("Скачивание файлов")
+    
     # Этап 7: Генерация отчетов
+    time_tracker.start_stage("Генерация отчетов")
     print_status("Этап 7/7: Генерация отчетов...")
     report_filename = f"recon_report_{timestamp}.md"
     report_file = get_report_path('recon', args.domain, report_filename, args.reports_dir)
@@ -161,6 +192,8 @@ def main():
         for dir_name, dir_path in dirs.items():
             report.write(f"- `{dir_path}`\n")
     
+    time_tracker.end_stage("Генерация отчетов")
+    
     print_success(f"Завершено! Отчет: {report_file}")
     
     # Финальная статистика
@@ -172,6 +205,12 @@ def main():
     print(f"  Поддомены: {subdomains_count}")
     print(f"  Живые хосты: {alive_count}")
     print(f"  URL: {urls_count}")
+    
+    # Показываем статистику времени выполнения
+    time_tracker.print_summary()
+    
+    # Завершаем общий отсчет времени
+    time_tracker.end_total()
 
 if __name__ == "__main__":
     main()
