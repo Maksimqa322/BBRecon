@@ -16,7 +16,6 @@
 1. Клонируйте репозиторий:
 ```bash
 git clone <repository-url>
-cd YA
 ```
 
 2. Установите необходимые инструменты (см. [INSTALL.md](INSTALL.md)):
