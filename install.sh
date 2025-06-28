@@ -41,10 +41,47 @@ check_root() {
     fi
 }
 
+# Определение версии Ubuntu
+get_ubuntu_version() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        UBUNTU_VERSION=$VERSION_CODENAME
+        UBUNTU_MAJOR_VERSION=$(echo $VERSION_ID | cut -d. -f1)
+        echo "Ubuntu $VERSION_ID ($VERSION_CODENAME)"
+    else
+        print_error "Не удалось определить версию Ubuntu"
+        exit 1
+    fi
+}
+
+# Очистка проблемных репозиториев
+cleanup_repositories() {
+    print_status "Очистка проблемных репозиториев..."
+    
+    # Удаляем старые репозитории HashiCorp если они есть
+    if [ -f /etc/apt/sources.list.d/hashicorp.list ]; then
+        sudo rm -f /etc/apt/sources.list.d/hashicorp.list
+        print_status "Удален старый репозиторий HashiCorp"
+    fi
+    
+    # Очищаем кэш apt
+    sudo apt clean
+    print_success "Репозитории очищены"
+}
+
 # Обновление системы
 update_system() {
     print_status "Обновление системы..."
-    sudo apt update
+    
+    # Очищаем проблемные репозитории перед обновлением
+    cleanup_repositories
+    
+    # Обновляем список пакетов
+    sudo apt update || {
+        print_warning "Обновление apt завершилось с предупреждениями, продолжаем..."
+    }
+    
+    # Обновляем пакеты
     sudo apt upgrade -y
     print_success "Система обновлена"
 }
@@ -90,7 +127,7 @@ install_go() {
         sudo apt remove -y golang-go 2>/dev/null || true
         
         # Устанавливаем последнюю версию
-        GO_VERSION="1.21.5"
+        GO_VERSION="1.22.0"
         wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz
         sudo rm -rf /usr/local/go
         sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
@@ -250,6 +287,9 @@ main() {
     
     check_root
     
+    # Определяем версию Ubuntu
+    get_ubuntu_version
+    
     print_status "Начало установки BagBountyAuto зависимостей..."
     
     update_system
@@ -274,8 +314,8 @@ main() {
     echo "║                        Установка завершена!                        ║"
     echo "║                                                                  ║"
     echo "║  Для использования скриптов:                                    ║"
-    echo "║  python3 recon.py example.com                                   ║"
-    echo "║  python3 run_all.py example.com                                 ║"
+    echo "║  python3 bagbounty.py example.com                               ║"
+    echo "║  python3 manage_reports.py summary                              ║"
     echo "║                                                                  ║"
     echo "║  Документация: README.md и INSTALL.md                           ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}"

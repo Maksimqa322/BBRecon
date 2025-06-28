@@ -9,7 +9,7 @@
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/your-username/BagBountyAuto.git
+git clone https://github.com/Maksimqa322/BagBountyAuto
 cd BagBountyAuto
 
 # Установка зависимостей
