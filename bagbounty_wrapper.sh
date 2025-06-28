@@ -46,6 +46,9 @@ fi
 print_status "Активация виртуального окружения..."
 source venv/bin/activate
 
+# Настраиваем PATH для Go инструментов
+export PATH="$HOME/go/bin:$PATH"
+
 # Проверяем установленные пакеты
 if ! pip show requests >/dev/null 2>&1; then
     print_warning "Python пакеты не установлены. Устанавливаем..."

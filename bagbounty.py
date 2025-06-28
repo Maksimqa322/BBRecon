@@ -171,6 +171,13 @@ def main():
     
     args = parser.parse_args()
     
+    # Настройка PATH для Go инструментов
+    go_bin_path = os.path.expanduser("~/go/bin")
+    if os.path.exists(go_bin_path):
+        current_path = os.environ.get('PATH', '')
+        if go_bin_path not in current_path:
+            os.environ['PATH'] = f"{go_bin_path}:{current_path}"
+    
     # Инициализация отладки
     debug_logger = None
     if args.debug or args.log_file or args.verbose:
