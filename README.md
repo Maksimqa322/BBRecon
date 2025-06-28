@@ -163,7 +163,8 @@ reports/
 
 - **Python 3.8+**
 - **Go 1.16+**
-- **subfinder, httpx, waybackurls, katana, nuclei, sqlmap, trufflehog**
+- **Ruby** (для wayback_machine_downloader)
+- **subfinder, httpx, waybackurls, katana, nuclei, sqlmap, trufflehog, wayback_machine_downloader**
 
 ## 📚 Документация
 

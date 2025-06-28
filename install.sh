@@ -299,6 +299,8 @@ verify_installation() {
         "wget"
         "curl"
         "git"
+        "ruby"
+        "wayback_machine_downloader"
     )
     
     failed_tools=()
@@ -333,6 +335,27 @@ verify_installation() {
     fi
 }
 
+# Установка Ruby и wayback_machine_downloader
+install_ruby_and_wayback() {
+    print_status "Проверка Ruby..."
+    if ! command -v ruby &> /dev/null; then
+        print_status "Установка Ruby..."
+        sudo apt install -y ruby ruby-dev ruby-bundler
+        print_success "Ruby установлен"
+    else
+        print_success "Ruby уже установлен"
+    fi
+    
+    print_status "Проверка wayback_machine_downloader..."
+    if ! command -v wayback_machine_downloader &> /dev/null; then
+        print_status "Установка wayback_machine_downloader..."
+        sudo gem install wayback_machine_downloader
+        print_success "wayback_machine_downloader установлен"
+    else
+        print_success "wayback_machine_downloader уже установлен"
+    fi
+}
+
 # Основная функция
 main() {
     echo -e "${GREEN}"
@@ -358,6 +381,7 @@ main() {
     install_python_packages
     update_nuclei_templates
     create_configs
+    install_ruby_and_wayback
     
     echo
     print_success "Установка завершена!"
