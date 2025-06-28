@@ -46,29 +46,29 @@ BagBountyAuto/
 ### Основные команды
 
 ```bash
-# Полный цикл сканирования
-python3 bagbounty.py example.com
+# Полный цикл сканирования (с виртуальным окружением)
+./bagbounty_wrapper.sh example.com
 
 # Только разведка
-python3 bagbounty.py example.com --recon-only
+./bagbounty_wrapper.sh example.com --recon-only
 
 # Без активного сканирования
-python3 bagbounty.py example.com --skip-scan
+./bagbounty_wrapper.sh example.com --skip-scan
 
 # С ограничением потоков
-python3 bagbounty.py example.com --threads 5
+./bagbounty_wrapper.sh example.com --threads 5
 
 # Указать папку для отчетов
-python3 bagbounty.py example.com --reports-dir /path/to/reports
+./bagbounty_wrapper.sh example.com --reports-dir /path/to/reports
 
 # Очистить старые отчеты перед запуском
-python3 bagbounty.py example.com --cleanup-reports
+./bagbounty_wrapper.sh example.com --cleanup-reports
 
 # Показать сводку отчетов в конце
-python3 bagbounty.py example.com --show-summary
+./bagbounty_wrapper.sh example.com --show-summary
 
 # Проверка зависимостей
-python3 bagbounty.py --check-deps
+./bagbounty_wrapper.sh --check-deps
 ```
 
 ### 🆕 Управление отчетами
@@ -88,6 +88,27 @@ python3 manage_reports.py setup --reports-dir /path/to/reports
 
 # Показать отчеты для конкретного домена
 python3 manage_reports.py list example.com
+```
+
+### 🔧 Виртуальное окружение
+
+В Ubuntu 24.04+ Python пакеты устанавливаются в виртуальное окружение для совместимости с PEP 668. 
+
+**Автоматическое использование:**
+- Скрипт `bagbounty_wrapper.sh` автоматически активирует виртуальное окружение
+- Используйте его вместо прямого вызова `python3 bagbounty.py`
+
+**Ручное управление виртуальным окружением:**
+```bash
+# Активация
+source venv/bin/activate
+
+# Запуск скриптов
+python3 bagbounty.py example.com
+python3 manage_reports.py summary
+
+# Деактивация
+deactivate
 ```
 
 ### Результаты

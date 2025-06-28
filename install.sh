@@ -194,14 +194,59 @@ install_sqlmap() {
 # Установка Python пакетов
 install_python_packages() {
     print_status "Установка Python пакетов..."
-    pip3 install --user \
+    
+    # Проверяем, есть ли python3-full
+    if ! dpkg -l | grep -q python3-full; then
+        print_status "Установка python3-full..."
+        sudo apt install -y python3-full
+    fi
+    
+    # Создаем виртуальное окружение для проекта
+    print_status "Создание виртуального окружения..."
+    if [ ! -d "venv" ]; then
+        python3 -m venv venv
+    fi
+    
+    # Активируем виртуальное окружение
+    source venv/bin/activate
+    
+    # Обновляем pip в виртуальном окружении
+    pip install --upgrade pip
+    
+    # Устанавливаем пакеты в виртуальное окружение
+    pip install \
         requests \
         httpx \
         beautifulsoup4 \
         lxml \
         colorama \
         tqdm
-    print_success "Python пакеты установлены"
+    
+    # Деактивируем виртуальное окружение
+    deactivate
+    
+    # Создаем скрипт-обертку для запуска с виртуальным окружением
+    cat > bagbounty_wrapper.sh << 'EOF'
+#!/bin/bash
+# Обертка для запуска BagBountyAuto с виртуальным окружением
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="$SCRIPT_DIR/venv"
+
+if [ ! -d "$VENV_PATH" ]; then
+    echo "Виртуальное окружение не найдено. Запустите ./install.sh"
+    exit 1
+fi
+
+# Активируем виртуальное окружение и запускаем скрипт
+source "$VENV_PATH/bin/activate"
+python3 "$SCRIPT_DIR/bagbounty.py" "$@"
+EOF
+    
+    chmod +x bagbounty_wrapper.sh
+    
+    print_success "Python пакеты установлены в виртуальное окружение"
+    print_warning "Используйте ./bagbounty_wrapper.sh вместо python3 bagbounty.py"
 }
 
 # Обновление nuclei templates
@@ -314,10 +359,13 @@ main() {
     echo "║                        Установка завершена!                        ║"
     echo "║                                                                  ║"
     echo "║  Для использования скриптов:                                    ║"
-    echo "║  python3 bagbounty.py example.com                               ║"
+    echo "║  ./bagbounty_wrapper.sh example.com                             ║"
     echo "║  python3 manage_reports.py summary                              ║"
     echo "║                                                                  ║"
     echo "║  Документация: README.md и INSTALL.md                           ║"
+    echo "║                                                                  ║"
+    echo "║  Примечание: Python пакеты установлены в виртуальное окружение  ║"
+    echo "║  Используйте bagbounty_wrapper.sh для запуска основного скрипта ║"
     echo "╚══════════════════════════════════════════════════════════════╝${NC}"
 }
 

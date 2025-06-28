@@ -44,6 +44,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Скрипты-обертки (создаются автоматически)
+bagbounty_wrapper.sh
+
 # IDE
 .vscode/
 .idea/
