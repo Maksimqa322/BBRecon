@@ -3,6 +3,8 @@
 Настройки BagBountyAuto
 """
 
+import os
+
 # Настройки инструментов
 TOOLS = {
     'subfinder': 'subfinder',
@@ -100,4 +102,22 @@ REPORT_TEMPLATE = """
 
 ## Рекомендации
 {recommendations}
-""" 
+"""
+
+# Настройки организации отчетов
+REPORTS_CONFIG = {
+    'base_dir': os.getenv('BAGBOUNTY_REPORTS_DIR', 'reports'),  # Базовая папка для отчетов
+    'max_age_days': 30,  # Максимальный возраст отчетов в днях
+    'cleanup_enabled': True,  # Включить автоматическую очистку
+    'organize_by_date': True,  # Организовать по дате
+    'organize_by_domain': True,  # Организовать по домену
+}
+
+# Структура папок для отчетов
+REPORTS_STRUCTURE = {
+    'recon': 'recon_reports',
+    'analysis': 'analysis_reports', 
+    'vuln_scan': 'vuln_scan_reports',
+    'filtered': 'filtered_reports',
+    'logs': 'logs'
+} 

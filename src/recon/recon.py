@@ -16,6 +16,7 @@ from src.utils.common import (
     run_command, count_lines, setup_workspace, get_timestamp,
     print_status, print_success, print_error
 )
+from src.utils.reports_manager import get_report_path
 from config.settings import TOOLS, PORTS, THREADS, KATANA_DEPTH, BLACKLIST_EXT, SENSITIVE_EXT
 
 def check_tools():
@@ -39,6 +40,7 @@ def check_tools():
 def main():
     parser = argparse.ArgumentParser(description='BagBountyAuto - Разведка домена')
     parser.add_argument('domain', help='Target domain (e.g. example.com)')
+    parser.add_argument('--reports-dir', help='Директория для отчетов')
     args = parser.parse_args()
     
     # Проверка инструментов
@@ -133,7 +135,8 @@ def main():
     
     # Этап 7: Генерация отчетов
     print_status("Этап 7/7: Генерация отчетов...")
-    report_file = f"{dirs['base']}/report_{timestamp}.md"
+    report_filename = f"recon_report_{timestamp}.md"
+    report_file = get_report_path('recon', args.domain, report_filename, args.reports_dir)
     
     with open(report_file, 'w', encoding='utf-8') as report:
         report.write(f"# Отчет разведки: {args.domain}\n")
