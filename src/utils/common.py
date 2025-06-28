@@ -37,24 +37,69 @@ def print_warning(message):
     """Выводит предупреждение"""
     print(f"[!] {message}")
 
-def run_command(command, output_file=None, cwd=None):
+def run_command(command, output_file=None, cwd=None, debug_logger=None, timeout=300):
     """Выполняет команду и сохраняет результат в файл"""
+    if debug_logger:
+        process_id = debug_logger.command_start(command, timeout)
+    
     try:
         if output_file:
             with open(output_file, 'w') as f:
-                result = subprocess.run(command, shell=True, stdout=f, stderr=subprocess.PIPE, text=True, cwd=cwd)
+                result = subprocess.run(
+                    command, 
+                    shell=True, 
+                    stdout=f, 
+                    stderr=subprocess.PIPE, 
+                    text=True, 
+                    cwd=cwd,
+                    timeout=timeout
+                )
         else:
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, cwd=cwd)
+            result = subprocess.run(
+                command, 
+                shell=True, 
+                capture_output=True, 
+                text=True, 
+                cwd=cwd,
+                timeout=timeout
+            )
         
         if result.returncode == 0:
+            if debug_logger:
+                output = result.stdout if result.stdout else "Команда выполнена успешно"
+                debug_logger.command_end(process_id, success=True, output=output)
             return True
         else:
-            print_error(f"Команда завершилась с ошибкой: {command}")
+            error_msg = f"Команда завершилась с ошибкой: {command}"
+            print_error(error_msg)
+            
+            if debug_logger:
+                debug_logger.command_end(process_id, success=False, error=result.stderr)
+                if result.stderr:
+                    debug_logger.error(f"STDERR: {result.stderr}")
+            
             if result.stderr:
                 print_error(f"STDERR: {result.stderr}")
             return False
+            
+    except subprocess.TimeoutExpired as e:
+        error_msg = f"Таймаут выполнения команды: {command}"
+        print_error(error_msg)
+        
+        if debug_logger:
+            debug_logger.command_end(process_id, success=False, error=f"Таймаут: {timeout}с")
+            debug_logger.warning(f"Команда зависла: {command}")
+        
+        return False
+        
     except Exception as e:
-        print_error(f"Ошибка выполнения команды: {e}")
+        error_msg = f"Ошибка выполнения команды: {e}"
+        print_error(error_msg)
+        
+        if debug_logger:
+            debug_logger.command_end(process_id, success=False, error=str(e))
+            debug_logger.log_exception(e, f"при выполнении команды: {command}")
+        
         return False
 
 def count_lines(filename):
@@ -90,6 +135,45 @@ def setup_workspace(domain):
 def get_timestamp():
     """Возвращает текущую временную метку"""
     return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+def check_file_exists(filepath, debug_logger=None):
+    """Проверяет существование файла с логированием"""
+    exists = os.path.exists(filepath)
+    if debug_logger:
+        if exists:
+            debug_logger.debug(f"Файл найден: {filepath}")
+        else:
+            debug_logger.warning(f"Файл не найден: {filepath}")
+    return exists
+
+def get_file_size(filepath, debug_logger=None):
+    """Получает размер файла с логированием"""
+    try:
+        if os.path.exists(filepath):
+            size = os.path.getsize(filepath)
+            if debug_logger:
+                debug_logger.debug(f"Размер файла {filepath}: {size} байт")
+            return size
+        else:
+            if debug_logger:
+                debug_logger.warning(f"Файл не существует: {filepath}")
+            return 0
+    except Exception as e:
+        if debug_logger:
+            debug_logger.error(f"Ошибка получения размера файла {filepath}: {e}")
+        return 0
+
+def safe_file_operation(operation, filepath, debug_logger=None):
+    """Безопасно выполняет операцию с файлом с логированием"""
+    try:
+        result = operation(filepath)
+        if debug_logger:
+            debug_logger.debug(f"Операция успешна: {operation.__name__} для {filepath}")
+        return result
+    except Exception as e:
+        if debug_logger:
+            debug_logger.error(f"Ошибка операции {operation.__name__} для {filepath}: {e}")
+        return None
 
 class TimeTracker:
     """Класс для отслеживания времени выполнения этапов"""
