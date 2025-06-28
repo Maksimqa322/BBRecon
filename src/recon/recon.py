@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from src.utils.common import (
-    run_command, count_lines, setup_workspace, get_timestamp,
+    run_command_with_activity_monitor, count_lines, setup_workspace, get_timestamp,
     print_status, print_success, print_error, time_tracker
 )
 from src.utils.reports_manager import get_report_path
@@ -45,6 +45,7 @@ def main():
     parser = argparse.ArgumentParser(description='BagBountyAuto - Разведка домена')
     parser.add_argument('domain', help='Target domain (e.g. example.com)')
     parser.add_argument('--reports-dir', help='Директория для отчетов')
+    parser.add_argument('--activity-timeout', type=int, default=60, help='Таймаут неактивности в секундах (по умолчанию: 60)')
     args = parser.parse_args()
     
     # Начинаем общий отсчет времени для разведки
@@ -62,12 +63,17 @@ def main():
     time_tracker.end_stage("Настройка рабочего пространства")
     
     print_status(f"Начало разведки для {args.domain}")
+    print_status(f"Таймаут неактивности: {args.activity_timeout}с")
     
     # Этап 1: Обнаружение поддоменов
     time_tracker.start_stage("Поиск поддоменов")
     print_status("Этап 1/7: Поиск поддоменов...")
     subdomains_file = f"{dirs['subdomains']}/subdomains.txt"
-    result = run_command(f"{TOOLS['subfinder']} -d {args.domain} -silent", subdomains_file)
+    result = run_command_with_activity_monitor(
+        f"{TOOLS['subfinder']} -d {args.domain} -silent", 
+        subdomains_file,
+        activity_timeout=args.activity_timeout
+    )
     
     if not result or count_lines(subdomains_file) == 0:
         print_error("Не удалось найти поддомены. Проверьте домен и доступность subfinder.")
@@ -81,9 +87,12 @@ def main():
     time_tracker.start_stage("Проверка живых поддоменов")
     print_status("Этап 2/7: Проверка живых поддоменов...")
     alive_file = f"{dirs['subdomains']}/alive.txt"
-    run_command(f"cat {subdomains_file} | {TOOLS['httpx']} -p {PORTS} -t {THREADS} -silent -o {alive_file}")
+    result = run_command_with_activity_monitor(
+        f"cat {subdomains_file} | {TOOLS['httpx']} -p {PORTS} -t {THREADS} -silent -o {alive_file}",
+        activity_timeout=args.activity_timeout
+    )
     
-    if count_lines(alive_file) == 0:
+    if not result or count_lines(alive_file) == 0:
         print_error("Не найдено живых поддоменов. Проверьте доступность хостов.")
         time_tracker.end_stage("Проверка живых поддоменов")
         time_tracker.end_total()
@@ -95,14 +104,21 @@ def main():
     time_tracker.start_stage("Сбор URL (waybackurls)")
     print_status("Этап 3/7: Сбор URL (waybackurls)...")
     waybackurls_file = f"{dirs['waybackurls']}/waybackurls_urls.txt"
-    run_command(f"{TOOLS['waybackurls']} {args.domain}", waybackurls_file)
+    run_command_with_activity_monitor(
+        f"{TOOLS['waybackurls']} {args.domain}", 
+        waybackurls_file,
+        activity_timeout=args.activity_timeout
+    )
     time_tracker.end_stage("Сбор URL (waybackurls)")
     
     # Этап 4: Сбор URL с помощью Katana
     time_tracker.start_stage("Сбор URL (katana)")
     print_status("Этап 4/7: Сбор URL (katana)...")
     katana_file = f"{dirs['katana']}/katana_urls.txt"
-    run_command(f"{TOOLS['katana']} -list {alive_file} -d {KATANA_DEPTH} -jc -fx -ef {BLACKLIST_EXT} -o {katana_file}")
+    run_command_with_activity_monitor(
+        f"{TOOLS['katana']} -list {alive_file} -d {KATANA_DEPTH} -jc -fx -ef {BLACKLIST_EXT} -o {katana_file}",
+        activity_timeout=args.activity_timeout
+    )
     time_tracker.end_stage("Сбор URL (katana)")
     
     # Этап 5: Объединение и обработка URL
@@ -115,11 +131,20 @@ def main():
     katana_exists = os.path.exists(katana_file) and os.path.getsize(katana_file) > 0
     
     if waybackurls_exists and katana_exists:
-        run_command(f"cat {waybackurls_file} {katana_file} | sort -u > {all_urls_file}")
+        run_command_with_activity_monitor(
+            f"cat {waybackurls_file} {katana_file} | sort -u > {all_urls_file}",
+            activity_timeout=args.activity_timeout
+        )
     elif waybackurls_exists:
-        run_command(f"cp {waybackurls_file} {all_urls_file}")
+        run_command_with_activity_monitor(
+            f"cp {waybackurls_file} {all_urls_file}",
+            activity_timeout=args.activity_timeout
+        )
     elif katana_exists:
-        run_command(f"cp {katana_file} {all_urls_file}")
+        run_command_with_activity_monitor(
+            f"cp {katana_file} {all_urls_file}",
+            activity_timeout=args.activity_timeout
+        )
     else:
         print_error("Не удалось собрать URL. Создаем пустой файл.")
         open(all_urls_file, 'w').close()
@@ -127,15 +152,24 @@ def main():
     # Поиск чувствительных файлов
     if os.path.exists(all_urls_file) and os.path.getsize(all_urls_file) > 0:
         sensitive_files = f"{dirs['urls']}/sensitive_files.txt"
-        run_command(f"grep -aE '{SENSITIVE_EXT}' {all_urls_file} > {sensitive_files}")
+        run_command_with_activity_monitor(
+            f"grep -aE '{SENSITIVE_EXT}' {all_urls_file} > {sensitive_files}",
+            activity_timeout=args.activity_timeout
+        )
         
         # Поиск URL с параметрами
         param_file = f"{dirs['urls']}/param_urls.txt"
-        run_command(f"grep -aF '=' {all_urls_file} | {TOOLS['sed']} 's/=.*/=/' | sort -u > {param_file}")
+        run_command_with_activity_monitor(
+            f"grep -aF '=' {all_urls_file} | {TOOLS['sed']} 's/=.*/=/' | sort -u > {param_file}",
+            activity_timeout=args.activity_timeout
+        )
         
         # Специфичные категории URL
         for ext, name in [("js$", "js_files.txt"), ("php$", "php_files.txt"), ("/api/", "api_endpoints.txt")]:
-            run_command(f"grep -a '{ext}' {all_urls_file} > {dirs['urls']}/{name}")
+            run_command_with_activity_monitor(
+                f"grep -a '{ext}' {all_urls_file} > {dirs['urls']}/{name}",
+                activity_timeout=args.activity_timeout
+            )
     else:
         print_error("Файл all_urls.txt пуст или не существует, пропускаем обработку URL")
         # Создаем пустые файлы
@@ -152,7 +186,10 @@ def main():
         if os.path.exists(urls_file) and os.path.getsize(urls_file) > 0:
             print_status(f"Скачивание {file_type} файлов...")
             # Добавляем дополнительные параметры для лучшей обработки ошибок
-            run_command(f"{TOOLS['wget']} -q -i {urls_file} -P {output_dir} --timeout=10 --tries=1 --no-check-certificate --no-verbose --continue --restrict-file-names=windows")
+            run_command_with_activity_monitor(
+                f"{TOOLS['wget']} -q -i {urls_file} -P {output_dir} --timeout=10 --tries=1 --no-check-certificate --no-verbose --continue --restrict-file-names=windows",
+                activity_timeout=args.activity_timeout
+            )
         else:
             print_error(f"Файл {urls_file} пуст или не существует, пропускаем скачивание {file_type} файлов")
     

@@ -8,13 +8,14 @@ import os
 import sys
 import argparse
 import subprocess
+import signal
 from pathlib import Path
 import time
 
 # Добавляем src в путь
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from src.utils.common import print_status, print_success, print_error, print_warning, time_tracker
+from src.utils.common import print_status, print_success, print_error, print_warning, time_tracker, run_command_with_activity_monitor
 from src.utils.reports_manager import setup_reports_for_domain, ReportsManager
 from src.utils.debug_logger import init_debug_logger, get_debug_logger
 
@@ -128,6 +129,26 @@ def check_dependencies(debug_logger=None):
     time_tracker.end_stage("Проверка зависимостей")
     return True
 
+def run_step_with_activity_monitor(command, step_name, cwd=None, debug_logger=None, timeout=300, activity_timeout=60):
+    """Выполняет этап с мониторингом активности"""
+    time_tracker.start_stage(step_name)
+    
+    result = run_command_with_activity_monitor(
+        command, 
+        output_file=None, 
+        cwd=cwd, 
+        debug_logger=debug_logger, 
+        timeout=timeout,
+        activity_timeout=activity_timeout
+    )
+    
+    if result:
+        time_tracker.end_stage(step_name)
+        return True
+    else:
+        time_tracker.end_stage(step_name)
+        return False
+
 def main():
     parser = argparse.ArgumentParser(
         description='BagBountyAuto - Автоматизированный фреймворк для багбаунти',
@@ -144,6 +165,7 @@ def main():
   %(prog)s example.com --debug            # Включить отладку
   %(prog)s example.com --log-file logs/debug.log  # Сохранить логи в файл
   %(prog)s example.com --timeout 600      # Увеличить таймаут до 10 минут
+  %(prog)s example.com --activity-timeout 120  # Таймаут неактивности 2 минуты
   %(prog)s example.com --monitor-hanging  # Мониторинг зависших процессов
   %(prog)s example.com --verbose          # Подробный вывод
         """
@@ -164,6 +186,7 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Включить режим отладки')
     parser.add_argument('--log-file', help='Файл для сохранения логов отладки')
     parser.add_argument('--timeout', type=int, default=300, help='Таймаут для команд в секундах (по умолчанию: 300)')
+    parser.add_argument('--activity-timeout', type=int, default=60, help='Таймаут неактивности в секундах (по умолчанию: 60)')
     parser.add_argument('--monitor-hanging', action='store_true', help='Мониторинг зависших процессов')
     parser.add_argument('--verbose', action='store_true', help='Подробный вывод')
     parser.add_argument('--debug-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], 
@@ -201,6 +224,7 @@ def main():
         debug_logger.info(f"Домен: {args.domain}")
         debug_logger.info(f"Опции: recon_only={args.recon_only}, skip_scan={args.skip_scan}")
         debug_logger.info(f"Таймаут: {args.timeout}с")
+        debug_logger.info(f"Таймаут неактивности: {args.activity_timeout}с")
     
     # Начинаем отсчет общего времени
     time_tracker.start_total()
@@ -211,6 +235,9 @@ def main():
         
         if debug_logger:
             debug_logger.print_summary()
+        
+        if args.show_timing:
+            time_tracker.print_summary()
         
         return
     

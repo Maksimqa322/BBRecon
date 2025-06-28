@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# BagBountyAuto Wrapper Script
-# Автоматически активирует виртуальное окружение и запускает основной скрипт
+# BagBountyAuto Wrapper Script (без venv)
 
 set -e
 
@@ -31,32 +30,8 @@ print_warning() {
 
 # Проверяем, что скрипт запущен из корневой директории проекта
 if [ ! -f "bagbounty.py" ]; then
-    print_error "Скрипт должен быть запущен из корневой директории проекта BagBountyAuto"
+    print_error "Скрипт должен быть запущен из корня проекта"
     exit 1
-fi
-
-# Проверяем наличие виртуального окружения
-if [ ! -d "venv" ]; then
-    print_warning "Виртуальное окружение не найдено. Создаем..."
-    python3 -m venv venv
-    print_success "Виртуальное окружение создано"
-fi
-
-# Активируем виртуальное окружение
-print_status "Активация виртуального окружения..."
-source venv/bin/activate
-
-# Настраиваем PATH для Go инструментов
-export PATH="$HOME/go/bin:$PATH"
-
-# Проверяем установленные пакеты
-if ! pip show requests >/dev/null 2>&1; then
-    print_warning "Python пакеты не установлены. Устанавливаем..."
-    pip install -r requirements.txt 2>/dev/null || {
-        print_error "Не удалось установить пакеты. Запустите ./install.sh"
-        exit 1
-    }
-    print_success "Пакеты установлены"
 fi
 
 # Проверяем аргументы
@@ -69,22 +44,24 @@ if [ $# -eq 0 ]; then
     echo "  $0 example.com --skip-scan"
     echo "  $0 example.com --show-timing"
     echo "  $0 example.com --show-summary"
+    echo "  $0 example.com --activity-timeout 120"
     echo ""
     echo "Опции:"
-    echo "  --recon-only       Только разведка"
-    echo "  --skip-scan        Пропустить активное сканирование"
-    echo "  --show-timing      Показать статистику времени выполнения"
-    echo "  --show-summary     Показать сводку отчетов"
-    echo "  --cleanup-reports  Очистить старые отчеты"
-    echo "  --threads N        Количество потоков (по умолчанию: 3)"
+    echo "  --recon-only         Только разведка"
+    echo "  --skip-scan          Пропустить активное сканирование"
+    echo "  --show-timing        Показать статистику времени выполнения"
+    echo "  --show-summary       Показать сводку отчетов"
+    echo "  --cleanup-reports    Очистить старые отчеты"
+    echo "  --threads N          Количество потоков (по умолчанию: 3)"
+    echo "  --activity-timeout N Таймаут неактивности в секундах (по умолчанию: 60)"
+    echo "  --timeout N          Общий таймаут в секундах (по умолчанию: 300)"
+    echo "  --debug              Включить режим отладки"
+    echo "  --verbose            Подробный вывод"
     exit 1
 fi
 
 # Запускаем основной скрипт с переданными аргументами
 print_status "Запуск BagBountyAuto..."
 python3 bagbounty.py "$@"
-
-# Деактивируем виртуальное окружение
-deactivate
 
 print_success "BagBountyAuto завершен" 
