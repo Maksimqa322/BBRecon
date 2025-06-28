@@ -113,8 +113,6 @@ install_python() {
         print_success "Python 3 уже установлен"
     fi
     
-    # Обновление pip
-    python3 -m pip install --upgrade pip
     print_success "Python настроен"
 }
 
@@ -207,13 +205,28 @@ install_python_packages() {
         python3 -m venv venv
     fi
     
+    # Проверяем, что виртуальное окружение создалось
+    if [ ! -d "venv" ]; then
+        print_error "Не удалось создать виртуальное окружение"
+        return 1
+    fi
+    
     # Активируем виртуальное окружение
     source venv/bin/activate
     
+    # Проверяем, что pip доступен в виртуальном окружении
+    if ! command -v pip &> /dev/null; then
+        print_error "pip не найден в виртуальном окружении"
+        deactivate
+        return 1
+    fi
+    
     # Обновляем pip в виртуальном окружении
+    print_status "Обновление pip в виртуальном окружении..."
     pip install --upgrade pip
     
     # Устанавливаем пакеты в виртуальное окружение
+    print_status "Установка Python пакетов в виртуальное окружение..."
     pip install \
         requests \
         httpx \

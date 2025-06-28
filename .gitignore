@@ -46,6 +46,7 @@ venv.bak/
 
 # Скрипты-обертки (создаются автоматически)
 bagbounty_wrapper.sh
+test_venv.sh
 
 # IDE
 .vscode/
